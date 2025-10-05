@@ -91,7 +91,7 @@ only_delta<-flight_train_dest_delayed %>%
 ```
 
 ```{r}
-ggplot(aes( x=dep_delay,fill=carrier_name ), data=only_delta)+
+ggplot(aes( y=dep_delay,fill=carrier_name ), data=only_delta)+
   geom_boxplot()
 
 ```
@@ -164,8 +164,7 @@ parsimonious_penalty
 lasso_workflow %>% 
   finalize_workflow(parameters = parsimonious_penalty) %>% 
   fit(data = flight_train_dest_delayed) %>% 
-  tidy() %>% 
-  filter(estimate !=0)
+  tidy() 
 ```
 
 
@@ -192,14 +191,56 @@ We used tidymodels to implement this model building process. See code below for 
 # Include all model building code in here.
 # Make sure to include comments explaining what your code does.
 
+# Define the model specification for KNN
+knn_spec <- nearest_neighbor() %>%
+  set_mode("regression") %>%
+  set_engine("kknn") %>%
+  set_args(neighbors = tune())
 
+# Create a recipe for data preprocessing
+knn_recipe <- recipe(dep_delay ~ ., data = flight_train_dest_delayed) %>%
+  step_rm(tailnum) %>% # Remove tailnum - too many unique values
+  step_nzv(all_predictors()) %>% # Remove near-zero variance predictors
+  step_novel(all_nominal_predictors()) %>% # Handle new levels in categorical variables
+  step_dummy(all_nominal_predictors()) %>% # Convert categorical to dummy variables
+  step_normalize(all_numeric_predictors()) # Standardize numeric predictors (critical for KNN)
 
+# Bundle the recipe and model into a workflow
+knn_workflow <- workflow() %>%
+  add_recipe(knn_recipe) %>%
+  add_model(knn_spec)
 
+# Tune the neighbors parameter for the KNN model
+set.seed(253)
+knn_models <- knn_workflow %>%
+  tune_grid(
+    grid = grid_regular(neighbors(range = c(5, 300)), levels = 20), 
+    resamples = vfold_cv(flight_train_dest_delayed, v = 5), 
+    metrics = metric_set(mae)
+  )
 
+# Select the best number of neighbors based on lowest MAE
+best_k <- knn_models %>%
+  select_best(metric = "mae")
 
-
-
+best_k
 ```
+
+```{r}
+# Fit the final KNN model with optimal k
+knn_final_model <- knn_workflow %>% 
+  finalize_workflow(parameters = best_k) %>% 
+  fit(data = flight_train_dest_delayed)
+
+# View the results
+best_k_results <- knn_models %>% 
+  collect_metrics() %>% 
+  filter(neighbors == best_k$neighbors)
+
+best_k_results
+```
+
+
 
 </details>
 
@@ -214,8 +255,18 @@ We used tidymodels to implement this model building process. See code below for 
 
 # visualization
 
-
-
+# Visualize how MAE changes with different k values
+knn_models %>%
+  collect_metrics() %>%
+  ggplot(aes(x = neighbors, y = mean)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "KNN Model Performance by Number of Neighbors",
+    x = "Number of Neighbors (k)",
+    y = "Mean Absolute Error (MAE)"
+  ) +
+  theme_minimal()
 
 
 ```
