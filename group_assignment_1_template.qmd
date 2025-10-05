@@ -240,7 +240,45 @@ best_k_results <- knn_models %>%
 best_k_results
 ```
 
+```{r}
+# Define the model specification for least squares
+ls_spec <- linear_reg() %>%
+  set_mode("regression") %>%
+  set_engine("lm") 
 
+# Create a recipe for data preprocessing
+ls_recipe <- recipe(dep_delay ~ ., data = flight_train_dest_delayed) %>%
+  step_rm(tailnum) %>% # Remove tailnum - too many unique values
+  step_nzv(all_predictors()) %>% # Remove near-zero variance predictors
+  step_novel(all_nominal_predictors()) %>% # Handle new levels
+  step_dummy(all_nominal_predictors()) # Convert categorical to dummy variables
+
+# Bundle the recipe and model into a workflow
+ls_workflow <- workflow() %>%
+  add_recipe(ls_recipe) %>%
+  add_model(ls_spec)
+
+# Fit the model and evaluate with cross-validation
+set.seed(253)
+ls_cv_results <- ls_workflow %>%
+  fit_resamples(
+    resamples = vfold_cv(flight_train_dest_delayed, v = 10),
+    metrics = metric_set(mae)
+  )
+
+ls_cv_results %>%
+  collect_metrics()
+```
+
+```{r}
+# Fit least squares model on full training data
+ls_final_model <- ls_workflow %>%
+  fit(data = flight_train_dest_delayed)
+
+ls_final_model %>%
+  tidy() %>%
+  arrange(desc(abs(estimate)))
+```
 
 </details>
 
