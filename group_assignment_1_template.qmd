@@ -59,6 +59,10 @@ head(flight_train)
 ```{r}
 flight_train_dest_delayed<- flight_train %>% 
   filter(dep_delay>0)
+
+flights_train_delayed<- flight_train %>% 
+  mutate(delta=as.numeric(carrier=="DL"),
+         skywest=as.numeric(carrier=="OO"))
 ```
 
 ```{r}
@@ -307,6 +311,15 @@ knn_models %>%
   theme_minimal()
 
 
+```
+```{r}
+ls_predictions <- ls_final_model %>%
+  augment(new_data = flight_train_dest_delayed)
+
+ggplot(ls_predictions, aes(x = dep_delay, y = .pred)) +
+  geom_point(alpha = 0.3) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") 
+  theme_minimal()
 ```
 
 
