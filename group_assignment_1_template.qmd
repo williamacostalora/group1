@@ -38,9 +38,6 @@ tidymodels_prefer()
 
 # Research Goals
 
-
-
-
 # Data
 
 ```{r}
@@ -165,10 +162,14 @@ parsimonious_penalty
 
 ```
 ```{r}
-lasso_workflow %>% 
+final_lasso<-lasso_workflow %>% 
   finalize_workflow(parameters = parsimonious_penalty) %>% 
-  fit(data = flight_train_dest_delayed) %>% 
-  tidy() 
+  fit(data = flight_train_dest_delayed) 
+
+
+final_lasso %>% 
+  tidy() %>% 
+  filter(estimate!=0)
 ```
 
 
@@ -192,9 +193,6 @@ We used tidymodels to implement this model building process. See code below for 
 #| message: false
 #| warning: false
 
-# Include all model building code in here.
-# Make sure to include comments explaining what your code does.
-
 # Define the model specification for KNN
 knn_spec <- nearest_neighbor() %>%
   set_mode("regression") %>%
@@ -203,7 +201,7 @@ knn_spec <- nearest_neighbor() %>%
 
 # Create a recipe for data preprocessing
 knn_recipe <- recipe(dep_delay ~ ., data = flight_train_dest_delayed) %>%
-  step_rm(tailnum) %>% # Remove tailnum - too many unique values
+  step_rm(tailnum, plane_engine, plane_model, plane_manufacturer) %>% # Remove tailnum - too many unique values
   step_nzv(all_predictors()) %>% # Remove near-zero variance predictors
   step_novel(all_nominal_predictors()) %>% # Handle new levels in categorical variables
   step_dummy(all_nominal_predictors()) %>% # Convert categorical to dummy variables
@@ -218,7 +216,7 @@ knn_workflow <- workflow() %>%
 set.seed(253)
 knn_models <- knn_workflow %>%
   tune_grid(
-    grid = grid_regular(neighbors(range = c(5, 300)), levels = 20), 
+    grid = grid_regular(neighbors(range = c(5, 400)), levels = 20), 
     resamples = vfold_cv(flight_train_dest_delayed, v = 5), 
     metrics = metric_set(mae)
   )
@@ -295,8 +293,6 @@ ls_final_model %>%
 #| warning: false
 #| echo: false
 
-# visualization
-
 # Visualize how MAE changes with different k values
 knn_models %>%
   collect_metrics() %>%
@@ -334,7 +330,16 @@ ggplot(ls_predictions, aes(x = dep_delay, y = .pred)) +
 
 Flights_Test <- read_csv('Flights_Test.csv')
 
-___ %>% # name of your final model
+knn_final_model %>% # name of your final model
+  augment(new_data = Flights_Test) %>%
+  mae(truth = dep_delay, estimate = .pred)
+
+
+ls_final_model %>% # name of your final model
+  augment(new_data = Flights_Test) %>%
+  mae(truth = dep_delay, estimate = .pred)
+
+ final_lasso%>% # name of your final model
   augment(new_data = Flights_Test) %>%
   mae(truth = dep_delay, estimate = .pred)
 ```
