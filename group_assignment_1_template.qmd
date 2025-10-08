@@ -15,10 +15,6 @@ format:
 
 <!-- Your report should follow the format specified in the Group Assignment 1 Instructions. Please review that document carefully! -->
 
-
-
-
-
 ```{r}
 #| include: false
 # Load packages
@@ -28,17 +24,13 @@ library(tidymodels)
 # resolves package conflicts by preferring tidymodels functions
 tidymodels_prefer() 
 
-# if your group needs any other packages, add them here
-
 ```
-
-
-
-
 
 # Research Goals
 
 # Data
+
+## Remove unnecessary predictors
 
 ```{r}
 #| message: false
@@ -54,12 +46,11 @@ head(flight_train)
 ```
 
 ```{r}
-flight_train_dest_delayed<- flight_train %>% 
-  filter(dep_delay>0)
+#mutate(delta=as.numeric(carrier=="DL"), skywest=as.numeric(carrier=="OO")) %>% 
+#flight_train_dest_delayed<- flight_train 
 
 flights_train_delayed<- flight_train %>% 
-  mutate(delta=as.numeric(carrier=="DL"),
-         skywest=as.numeric(carrier=="OO"))
+  select(-tailnum,-carrier, -year,-dest_lat,-dest_lon, -dest_tz, -dest_dst, -plane_engines, -plane_seats, -plane_type, -dest)
 ```
 
 ```{r}
@@ -135,8 +126,9 @@ lasso_spec <- linear_reg() %>%
   set_args(mixture = 1, penalty = tune())
 
 # Create a recipe for data preprocessing
-variable_recipe <- recipe(dep_delay ~ ., data = flight_train_dest_delayed) %>%
-  step_nzv(all_predictors()) %>% # Add step_nzv() to remove near-zero variance predictors
+variable_recipe <- recipe(dep_delay ~ ., data = flights_train_delayed) %>%
+  step_nzv(all_predictors()) %>% # Add step_nzv() to remove near-zero variance predictor
+  step_novel(all_nominal_predictors()) %>% 
   step_dummy(all_nominal_predictors())
 
 # Bundle the recipe and model into a workflow
@@ -148,8 +140,8 @@ lasso_workflow <- workflow() %>%
 set.seed(253)
 lasso_models <- lasso_workflow %>%
   tune_grid(
-    grid = grid_regular(penalty(range = c(-5, 1)), levels = 100),
-    resamples = vfold_cv(flight_train_dest_delayed, v = 10),
+    grid = grid_regular(penalty(range = c(-5, 0.4)), levels = 100),
+    resamples = vfold_cv(flights_train_delayed, v = 10),
     metrics = metric_set(mae)
   )
 
@@ -164,7 +156,7 @@ parsimonious_penalty
 ```{r}
 final_lasso<-lasso_workflow %>% 
   finalize_workflow(parameters = parsimonious_penalty) %>% 
-  fit(data = flight_train_dest_delayed) 
+  fit(data = flights_train_delayed) 
 
 
 final_lasso %>% 
@@ -201,7 +193,7 @@ knn_spec <- nearest_neighbor() %>%
 
 # Create a recipe for data preprocessing
 knn_recipe <- recipe(dep_delay ~ ., data = flight_train_dest_delayed) %>%
-  step_rm(tailnum, plane_engine, plane_model, plane_manufacturer) %>% # Remove tailnum - too many unique values
+  step_rm(tailnum, plane_engine, plane_model, plane_manufacturer, plane_seats,plane_type,dest_dst, dest_tz) %>% # Remove tailnum - too many unique values
   step_nzv(all_predictors()) %>% # Remove near-zero variance predictors
   step_novel(all_nominal_predictors()) %>% # Handle new levels in categorical variables
   step_dummy(all_nominal_predictors()) %>% # Convert categorical to dummy variables
