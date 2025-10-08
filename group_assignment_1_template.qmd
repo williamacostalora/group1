@@ -46,9 +46,6 @@ head(flight_train)
 ```
 
 ```{r}
-#mutate(delta=as.numeric(carrier=="DL"), skywest=as.numeric(carrier=="OO")) %>% 
-#flight_train_dest_delayed<- flight_train 
-
 flights_train_delayed<- flight_train %>% 
   select(-tailnum,-carrier, -year,-dest_lat,-dest_lon, -dest_tz, -dest_dst, -plane_engines, -plane_seats, -plane_type, -dest)
 ```
@@ -60,25 +57,20 @@ flights_train_delayed<- flight_train %>%
 
 # visualization
 
-ggplot(aes( x=dep_delay, fill=carrier_name), data=flight_train_dest_delayed)+
+ggplot(aes( x=dep_delay, fill=carrier_name), data=flights_train_delayed)+
   geom_bar()
 ```
 
-```{r}
-ggplot(aes(x=dep_delay, fill=dest), data=flight_train_dest_delayed)+
-  geom_histogram()
-```
-
 
 ```{r}
-top_three_delayed <- flight_train_dest_delayed %>%
+top_three_delayed <- flights_train_delayed %>%
   arrange(desc(dep_delay)) %>%
   slice(1:5)
 
 top_three_delayed
 
 
-only_delta<-flight_train_dest_delayed %>% 
+only_delta<-flights_train_delayed %>% 
   filter(carrier_name=="Delta Air Lines Inc.")
 ```
 
@@ -106,7 +98,7 @@ ggplot(aes(x=distance, y=dep_delay), data=only_delta_dis_100)+
   geom_smooth(method="lm")
 ```
 ```{r}
-sky_delta <- flight_train_dest_delayed %>%
+sky_delta <- flights_train_delayed %>%
   filter(carrier_name %in% c("Delta Air Lines Inc.", "SkyWest Airlines Inc."))
 
 ggplot(aes( x=dep_delay), data=sky_delta)+
@@ -192,8 +184,7 @@ knn_spec <- nearest_neighbor() %>%
   set_args(neighbors = tune())
 
 # Create a recipe for data preprocessing
-knn_recipe <- recipe(dep_delay ~ ., data = flight_train_dest_delayed) %>%
-  step_rm(tailnum, plane_engine, plane_model, plane_manufacturer, plane_seats,plane_type,dest_dst, dest_tz) %>% # Remove tailnum - too many unique values
+knn_recipe <- recipe(dep_delay ~ ., data = flights_train_delayed) %>%
   step_nzv(all_predictors()) %>% # Remove near-zero variance predictors
   step_novel(all_nominal_predictors()) %>% # Handle new levels in categorical variables
   step_dummy(all_nominal_predictors()) %>% # Convert categorical to dummy variables
@@ -209,7 +200,7 @@ set.seed(253)
 knn_models <- knn_workflow %>%
   tune_grid(
     grid = grid_regular(neighbors(range = c(5, 400)), levels = 20), 
-    resamples = vfold_cv(flight_train_dest_delayed, v = 5), 
+    resamples = vfold_cv(flights_train_delayed, v = 5), 
     metrics = metric_set(mae)
   )
 
@@ -224,7 +215,7 @@ best_k
 # Fit the final KNN model with optimal k
 knn_final_model <- knn_workflow %>% 
   finalize_workflow(parameters = best_k) %>% 
-  fit(data = flight_train_dest_delayed)
+  fit(data = flights_train_delayed)
 
 # View the results
 best_k_results <- knn_models %>% 
@@ -241,7 +232,7 @@ ls_spec <- linear_reg() %>%
   set_engine("lm") 
 
 # Create a recipe for data preprocessing
-ls_recipe <- recipe(dep_delay ~ ., data = flight_train_dest_delayed) %>%
+ls_recipe <- recipe(dep_delay ~ ., data = flights_train_delayed) %>%
   step_rm(tailnum) %>% # Remove tailnum - too many unique values
   step_nzv(all_predictors()) %>% # Remove near-zero variance predictors
   step_novel(all_nominal_predictors()) %>% # Handle new levels
@@ -256,7 +247,7 @@ ls_workflow <- workflow() %>%
 set.seed(253)
 ls_cv_results <- ls_workflow %>%
   fit_resamples(
-    resamples = vfold_cv(flight_train_dest_delayed, v = 10),
+    resamples = vfold_cv(flights_train_delayed, v = 10),
     metrics = metric_set(mae)
   )
 
@@ -267,7 +258,7 @@ ls_cv_results %>%
 ```{r}
 # Fit least squares model on full training data
 ls_final_model <- ls_workflow %>%
-  fit(data = flight_train_dest_delayed)
+  fit(data = flights_train_delayed)
 
 ls_final_model %>%
   tidy() %>%
@@ -302,7 +293,7 @@ knn_models %>%
 ```
 ```{r}
 ls_predictions <- ls_final_model %>%
-  augment(new_data = flight_train_dest_delayed)
+  augment(new_data = flights_train_delayed)
 
 ggplot(ls_predictions, aes(x = dep_delay, y = .pred)) +
   geom_point(alpha = 0.3) +
