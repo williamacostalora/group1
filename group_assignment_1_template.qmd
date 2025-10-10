@@ -1,5 +1,5 @@
 ---
-title: "Your Title"
+title: "Can We Predict Airplane Departure Delays?"
 subtitle: "STAT 253 Group Assignment 1"
 date: today
 author: "Olivia, Adam, and Liam"
@@ -28,9 +28,10 @@ tidymodels_prefer()
 
 # Research Goals
 
+Flight delays are a burden to customers and create operational challenges for airlines. Understanding and predicting departure delays is critical for decision making and effective resource allocation. Our goal is to develop a predictive model that can help to accurately predict departure delays in minutes for flights leaving Minneapolis-St. Paul International Airport (MSP) during 2022.
+
 # Data
 
-## Remove unnecessary predictors
 
 ```{r}
 #| message: false
@@ -41,14 +42,18 @@ tidymodels_prefer()
 
 flight_train <- read.csv("Flights_Train.csv") 
 
-head(flight_train)
-
-```
-
-```{r}
 flights_train_delayed<- flight_train %>% 
   select(-tailnum,-carrier, -year,-dest_lat,-dest_lon, -dest_tz, -dest_dst, -plane_engines, -plane_seats, -plane_type, -dest)
+
 ```
+
+MSP flight data for the year 2022 was sourced from the Bureau of Transportation Statistics. The dataset includes information on 10,000 randomly sampled flights with departure delays of less than two hours. This sample hopefully captures typical operations and excludes some extreme outlier events. Each flight record was created by merging departure and delay information with aircraft specifications, destination airport characteristics, and weather conditions at MSP at scheduled departure time. This data was collected to support predictive modeling and operational analysis of the industry. 
+
+Our outcome of interest is departure delay, measured in minutes, where positive values indicate late departures and negative values represent early departures. The dataset includes a range of possible predictors that may influence delays: temporal factors such as scheduled departure time, day of week, and month; flight characteristics including carrier, distance, and scheduled air time; aircraft specifications like manufacturing year, engine type, and seating capacity; destination details such as airport locations, altitude, and timezone; and weather conditions at departure including wind speed, wind direction, wind gusts, and visibility. By examining these variables, we aim to identify which operational and environmental conditions are most predictive of departure delays at MSP.  
+
+It is important to note that before we began building a model and attempting to estimate departure delay time, we pre-processed some of our data. Mainly, this involved the removal of several predictors which we deemed unnecessary for predicting departure delay. These included tail number, carrier (we used another variable called carrier name instead), year (all flights were in 2022), destination latitude, destination longitude, destination timezone, destination distance, plane engine, plane seats, and destination (we used another variable called destination name).  
+
+
 
 ```{r}
 #| message: false
@@ -60,81 +65,34 @@ flights_train_delayed<- flight_train %>%
 ggplot(aes( x=dep_delay, fill=carrier_name), data=flights_train_delayed)+
   geom_bar()
 ```
-```{r}
-# delays by hour
-ggplot(Flights_train, aes(x = factor(hour), y = dep_delay)) +
-  geom_boxplot(fill = "lightblue") +
-  labs(title = "Departure Delays by Hour of Day",
-       x = "Hour", y = "Departure Delay (minutes)") +
-  theme_minimal()
-
-#by day
-ggplot(Flights_train, aes(x = dow, y = dep_delay)) +
-  geom_boxplot(fill = "lightgreen") +
-  labs(title = "Departure Delays by Day of Week",
-       x = "Day of Week", y = "Departure Delay (minutes)") +
-  theme_minimal()
-
-#by month
-ggplot(Flights_train, aes(x = factor(month), y = dep_delay)) +
-  geom_boxplot(fill = "lightyellow") +
-  labs(title = "Departure Delays by Month",
-       x = "Month", y = "Departure Delay (minutes)") +
-  theme_minimal()
-
-```
-
-
-
-```{r}
-top_three_delayed <- flights_train_delayed %>%
-  arrange(desc(dep_delay)) %>%
-  slice(1:5)
-
-top_three_delayed
-
-
-only_delta<-flights_train_delayed %>% 
-  filter(carrier_name=="Delta Air Lines Inc.")
-```
-
-```{r}
-ggplot(aes( y=dep_delay,fill=carrier_name ), data=only_delta)+
-  geom_boxplot()
-
-```
-
-```{r}
-ggplot(aes( y=dep_delay,x=dow, fill=carrier_name ), data=only_delta)+
-  geom_jitter()
-```
-```{r}
-ggplot(aes( y=dep_delay,x=hour, fill=carrier_name ), data=only_delta)+
-  geom_boxplot()
-```
-```{r}
-
-only_delta_dis_100<-only_delta %>% 
-  filter(distance<1800)
-
-ggplot(aes(x=distance, y=dep_delay), data=only_delta_dis_100)+
-  geom_point()+
-  geom_smooth(method="lm")
-```
-```{r}
-sky_delta <- flights_train_delayed %>%
-  filter(carrier_name %in% c("Delta Air Lines Inc.", "SkyWest Airlines Inc."))
-
-ggplot(aes( x=dep_delay), data=sky_delta)+
-  geom_bar()+
-  facet_wrap(~carrier_name)
-
-```
 
 
 # Model Building
 
+When building our model, we experimented with many different approaches. This helped us ensure we weren’t making our model unnecessarily complicated. Simple models are more desired than complicated ones, and will do better on any new data the company would want to apply the model to. Our baseline comparison was between the simplest possible model of least squares. We compared the MAE’s (mean standard error of our departure delay estimates) to those of our other models. We found that using LASSO gave us the most accurate predictions.
+Using LASSO allowed us to simplify the base least squares model, and determine which predictors in the dataset were not significant in estimating departure delay. As seen in the final model, we only have x remaining predictors out of y. However, we did not stop here. When using LASSO, we can further simplify our model by choosing a different tuning parameter in the model. This choice does not make our predictions significantly worse, and is a better choice for our model (reference lambda plot). This parsimonious model also had the lowest MAE (12.2363), which means on average, our model prediction of departure delay has a mean average error of  about 12 minutes, the best of all models we fit. 
+
+# Implementation
+
+We implemented our LASSO regression model using a systematic approach that ensures the model can be reliably applied to new flight data. First, we prepared the data by removing any predictors that showed almost no variation across flights, as mentioned in the data section of the report, as these provide little to no predictive value. We also set up the model to handle categorical variables, such as airline names and airport codes, by converting them into numerical formats, allowing us to process them within our model. 
+
+Next, we tested 100 different versions of the LASSO model, each with a varying level of regularization. The regularization technique penalizes model complexity and helps prevent overfitting by identifying the most important predictors. We evaluated each model version using 10-fold cross-validation, which involves splitting the training data into 10 parts, training on nine parts, and testing on the remaining part, then repeating this process 10 times. This approach gives us a reliable estimate of how well each model will perform on new data. 
+
+Instead of just choosing the model with the absolute lowest error, we applied the “one standard error rule” to select a slightly simpler model that performs nearly as well. This principle recognizes that simpler models with fewer predictors are often more reliable when applied to new data.
+
+Finally, we trained our selected model on the whole training dataset. The model achieved a cross-validated mean absolute error of 12.14 minutes, indicating that our predictions are, on average, within approximately 12 minutes of the actual departure delay. The Lasso process automatically identified the most important predictors while eliminating less influential variables, resulting in a streamlined model focused on the key drivers of flight delays.
+
+
+We used tidymodels to implement this model building process. See code below for full details.
+
+<details>
+<summary>View Code</summary>
+
 ```{r}
+#| message: false
+#| warning: false
+
+
 # Define the model specification for a Lasso regression
 lasso_spec <- linear_reg() %>%
   set_mode("regression") %>%
@@ -167,11 +125,14 @@ parsimonious_penalty <- lasso_models %>%
 
 # Print the selected penalty value
 parsimonious_penalty
-
 ```
 
 
 ```{r}
+#| message: false
+#| warning: false
+
+
 final_lasso<-lasso_workflow %>% 
   finalize_workflow(parameters = parsimonious_penalty) %>% 
   fit(data = flights_train_delayed) 
@@ -184,6 +145,10 @@ final_lasso %>%
 
 
 ```{r}
+#| message: false
+#| warning: false
+
+
 parsimonious_results <- lasso_models %>% 
   collect_metrics() %>% 
   filter(penalty == parsimonious_penalty$penalty)
@@ -191,21 +156,26 @@ parsimonious_results <- lasso_models %>%
 parsimonious_results
 ```
 
+</details>
+
+
+# Model Evaluation
+
+Our final Lasso regression model was evaluated using four key questions: Is it strong? Is it wrong? Is it accurate? Is it fair? 
+Our model achieved an R² value of 0.014 during validation testing. R² measures how much of the variation in departure delays the model can explain, ranging from 0 to 1. While this low value (1.4%) might seem concerning, it's important to understand what this means for a prediction-focused model. Flight delays are inherently unpredictable as they can be influenced by weather events, mechanical issues, air traffic congestion, and many other factors that occur in real time. Our model uses information available before departure to predict delays. The low R² reflects that delays are highly variable and difficult to predict in advance, which aligns with the reality of airline operations. What matters more for practical use is whether the model's predictions are accurate enough to be useful for decision-making.
+
+We examined plots to check whether the statistical assumptions underlying our model are valid. The residual plot, which shows the difference between predicted and actual delays, shows that prediction errors (residuals) are scattered randomly around zero with no clear patterns. This is good, as it means the model isn't systematically missing important relationships in the data. The residuals show a relatively constant spread across different prediction values, though there is slightly more variation for longer predicted delays. The distribution of prediction errors is roughly bell-shaped and centered near zero, with a slight tendency toward underpredicting delays (more large positive errors than large negative errors). Overall, these diagnostics suggest the model's structure is appropriate for this prediction task.
+
 ```{r}
+#| message: false
+#| warning: false
+#| echo: false
+
+
 final_lasso_results <- final_lasso %>%   
   augment(new_data = flights_train_delayed) %>% 
   mutate(.resid = dep_delay - .pred)
-```
 
-
-```{r}
-final_lasso_results %>% 
-  ggplot(aes(x = .pred, y = .resid)) + 
-  geom_point() + 
-  geom_hline(yintercept = 0)
-```
-
-```{r}
 final_lasso_results %>% 
   ggplot(aes(x = .pred, y = .resid)) + 
   geom_point(alpha = 0.5) + 
@@ -220,7 +190,12 @@ final_lasso_results %>%
   theme(plot.title = element_text(face = "bold", size = 14))
 ```
 
+
 ```{r}
+#| message: false
+#| warning: false
+#| echo: false
+
 ggplot(final_lasso_results, aes(x = .resid)) +
   geom_histogram(aes(y = after_stat(density)), bins = 50, 
                  fill = "steelblue", alpha = 0.7) +
@@ -231,17 +206,15 @@ ggplot(final_lasso_results, aes(x = .resid)) +
     y = "Density"
   )
 ```
+
+The model achieves an average prediction error (Mean Absolute Error or MAE) of 12.15 minutes based on validation testing. This means that when the model predicts a departure delay, it's typically off by about 12 minutes in either direction. For planning purposes, this level of accuracy could provide value. Knowing whether a flight is likely to depart roughly on time versus being delayed by 30+ minutes could inform decisions about gate assignments, crew scheduling, and passenger communications. The predicted versus actual delay plot shows that most predictions fall in the 2-7 minute range. The model consistently predicts small delays, which works well for flights with minor delays, but struggles to accurately anticipate severe delays accurately. This conservative prediction pattern is understandable given that most flights experience minor delays, and the model learns from this historical pattern.
+
 ```{r}
-ggplot(final_lasso_results, aes(x = dep_delay, y = .pred)) +
-  geom_point(alpha = 0.3) +
-  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
-  labs(
-    title = "Predicted vs Actual Departure Delays",
-    x = "Actual Delay (minutes)",
-    y = "Predicted Delay (minutes)"
-  )
-```
-```{r}
+#| message: false
+#| warning: false
+#| echo: false
+
+
 ggplot(final_lasso_results, aes(x = dep_delay, y = .pred)) +
   # Add shaded regions for interpretation
   annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf, 
@@ -265,18 +238,143 @@ ggplot(final_lasso_results, aes(x = dep_delay, y = .pred)) +
 
 ```
 
+Evaluating fairness requires considering both the data used to build the model and how the predictions might be used. Several concerns merit attention. First, the dataset represents only flights with delays during a specific time period. If certain routes, aircraft types, or operating conditions are underrepresented in the training data, the model may not perform equally well across all operations. For example, if flights to smaller regional airports are underrepresented, predictions for those routes may be less reliable.
+
+Second, the model's tendency to predict moderate delays for most situations means it will systematically underestimate severe delays. This could disproportionately impact routes or times of day that experience more variable delay patterns. If certain routes consistently face longer delays (perhaps due to congested airspace or infrastructure limitations), passengers and operations staff on those routes would receive less accurate predictions.
+Third, there are equity considerations. If the model performs differently for different carriers, routes, or customer segments, this could perpetuate or exacerbate existing service quality disparities. For instance, if budget routes or flights serving smaller communities receive less accurate predictions, those passengers would have less reliable information for planning their travel.
+
+Finally, given the model's limited explanatory power, deploying it for operational decisions requires careful consideration of the consequences of prediction errors. Who bears the cost when predictions are wrong? Operations managers should consider whether certain groups of passengers or routes would be unfairly disadvantaged by relying on predictions that don't capture the full variability of delay outcomes.
 
 
-# Implementation
-
-We used tidymodels to implement this model building process. See code below for full details.
-
-<details>
-<summary>View Code</summary>
+# Validation
 
 ```{r}
 #| message: false
 #| warning: false
+#| error: true
+# validate final model on test set
+# NOTE: don't run this code chunk until you are done with all other parts of your report
+
+Flights_Test <- read_csv('Flights_Test.csv')
+
+ final_lasso%>% # name of your final model
+  augment(new_data = Flights_Test) %>%
+  mae(truth = dep_delay, estimate = .pred)
+```
+
+
+
+
+# Contributions
+
+
+
+
+# Appendix
+
+```{r}
+#| eval: false
+# put code for any other models or visualizations that you considered here
+# use comments to explain what your code is doing
+
+# some data wrangling/extra visualizations 
+
+flight_train %>%
+  mutate(wind_bin = cut(wind_speed, breaks = seq(0, 35, by = 5))) %>%
+  group_by(wind_bin) %>%
+  summarise(mean_delay = mean(dep_delay, na.rm = TRUE)) %>%
+  filter(!is.na(wind_bin)) %>%
+  ggplot(aes(x = wind_bin, y = mean_delay)) +
+  geom_col(fill = "steelblue") +
+  labs(title = "Mean Departure Delay by Wind Speed",
+       x = "Wind Speed Range", y = "Mean Delay (minutes)")
+
+flight_train %>%
+  mutate(visib_bin = cut(visib, breaks = c(0, 2, 5, 8, 10, 12))) %>%
+  group_by(visib_bin) %>%
+  summarise(mean_delay = mean(dep_delay, na.rm = TRUE)) %>%
+  filter(!is.na(visib_bin)) %>%
+  ggplot(aes(x = visib_bin, y = mean_delay)) +
+  geom_col(fill = "coral") +
+  labs(title = "Mean Departure Delay by Visibility",
+       x = "Visibility Range", y = "Mean Delay (minutes)")
+
+flight_train %>%
+  mutate(wind_bin = cut(wind_gust, breaks = seq(0, 35, by = 5))) %>%
+  group_by(wind_bin) %>%
+  summarise(mean_delay = mean(dep_delay, na.rm = TRUE)) %>%
+  filter(!is.na(wind_bin)) %>%
+  ggplot(aes(x = wind_bin, y = mean_delay)) +
+  geom_col(fill = "steelblue") +
+  labs(title = "Mean Departure Delay by Wind Gusts",
+       x = "Wind Speed Range", y = "Mean Delay (minutes)")
+
+
+# delays by hour
+ggplot(flight_train, aes(x = factor(hour), y = dep_delay)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Departure Delays by Hour of Day",
+       x = "Hour", y = "Departure Delay (minutes)") +
+  theme_minimal()
+
+#by day
+ggplot(flight_train, aes(x = dow, y = dep_delay)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Departure Delays by Day of Week",
+       x = "Day of Week", y = "Departure Delay (minutes)") +
+  theme_minimal()
+
+#by month
+ggplot(flight_train, aes(x = factor(month), y = dep_delay)) +
+  geom_boxplot(fill = "lightyellow") +
+  labs(title = "Departure Delays by Month",
+       x = "Month", y = "Departure Delay (minutes)") +
+  theme_minimal()
+
+top_three_delayed <- flights_train_delayed %>%
+  arrange(desc(dep_delay)) %>%
+  slice(1:5)
+
+top_three_delayed
+
+
+only_delta<-flights_train_delayed %>% 
+  filter(carrier_name=="Delta Air Lines Inc.")
+
+
+ggplot(aes( y=dep_delay,fill=carrier_name ), data=only_delta)+
+  geom_boxplot()
+
+
+ggplot(aes( y=dep_delay,x=dow, fill=carrier_name ), data=only_delta)+
+  geom_jitter()
+
+ggplot(aes( y=dep_delay,x=hour, fill=carrier_name ), data=only_delta)+
+  geom_boxplot()
+
+
+only_delta_dis_100<-only_delta %>% 
+  filter(distance<1800)
+
+ggplot(aes(x=distance, y=dep_delay), data=only_delta_dis_100)+
+  geom_point()+
+  geom_smooth(method="lm")
+
+sky_delta <- flights_train_delayed %>%
+  filter(carrier_name %in% c("Delta Air Lines Inc.", "SkyWest Airlines Inc."))
+
+ggplot(aes( x=dep_delay), data=sky_delta)+
+  geom_bar()+
+  facet_wrap(~carrier_name)
+
+```
+
+```{r}
+#| message: false
+#| warning: false
+#| eval: false
+
+# KNN model implementation
 
 # Define the model specification for KNN
 knn_spec <- nearest_neighbor() %>%
@@ -310,9 +408,7 @@ best_k <- knn_models %>%
   select_best(metric = "mae")
 
 best_k
-```
 
-```{r}
 # Fit the final KNN model with optimal k
 knn_final_model <- knn_workflow %>% 
   finalize_workflow(parameters = best_k) %>% 
@@ -324,9 +420,28 @@ best_k_results <- knn_models %>%
   filter(neighbors == best_k$neighbors)
 
 best_k_results
+
+# Visualize how MAE changes with different k values
+knn_models %>%
+  collect_metrics() %>%
+  ggplot(aes(x = neighbors, y = mean)) +
+  geom_line() +
+  geom_point() +
+  labs(
+    title = "KNN Model Performance by Number of Neighbors",
+    x = "Number of Neighbors (k)",
+    y = "Mean Absolute Error (MAE)"
+  ) +
+  theme_minimal()
 ```
 
 ```{r}
+#| message: false
+#| warning: false
+#| eval: false
+
+#least squares model implementation
+
 # Define the model specification for least squares
 ls_spec <- linear_reg() %>%
   set_mode("regression") %>%
@@ -354,9 +469,7 @@ ls_cv_results <- ls_workflow %>%
 
 ls_cv_results %>%
   collect_metrics()
-```
 
-```{r}
 # Fit least squares model on full training data
 ls_final_model <- ls_workflow %>%
   fit(data = flights_train_delayed)
@@ -364,35 +477,7 @@ ls_final_model <- ls_workflow %>%
 ls_final_model %>%
   tidy() %>%
   arrange(desc(abs(estimate)))
-```
 
-</details>
-
-
-
-# Model Evaluation
-
-```{r}
-#| message: false
-#| warning: false
-#| echo: false
-
-# Visualize how MAE changes with different k values
-knn_models %>%
-  collect_metrics() %>%
-  ggplot(aes(x = neighbors, y = mean)) +
-  geom_line() +
-  geom_point() +
-  labs(
-    title = "KNN Model Performance by Number of Neighbors",
-    x = "Number of Neighbors (k)",
-    y = "Mean Absolute Error (MAE)"
-  ) +
-  theme_minimal()
-
-
-```
-```{r}
 ls_predictions <- ls_final_model %>%
   augment(new_data = flights_train_delayed)
 
@@ -402,102 +487,5 @@ ggplot(ls_predictions, aes(x = dep_delay, y = .pred)) +
   theme_minimal()
 ```
 
-
-# Validation
-
-```{r}
-#| message: false
-#| warning: false
-#| error: true
-# validate final model on test set
-# NOTE: don't run this code chunk until you are done with all other parts of your report
-
-Flights_Test <- read_csv('Flights_Test.csv')
-
-knn_final_model %>% # name of your final model
-  augment(new_data = Flights_Test) %>%
-  mae(truth = dep_delay, estimate = .pred)
-
-
-ls_final_model %>% # name of your final model
-  augment(new_data = Flights_Test) %>%
-  mae(truth = dep_delay, estimate = .pred)
-
- final_lasso%>% # name of your final model
-  augment(new_data = Flights_Test) %>%
-  mae(truth = dep_delay, estimate = .pred)
-```
-
-
-
-
-# Contributions
-
-
-
-
-# Appendix
-
-```{r}
-#| eval: false
-# put code for any other models or visualizations that you considered here
-# use comments to explain what your code is doing
-
-
-Flights_train %>%
-  mutate(wind_bin = cut(wind_speed, breaks = seq(0, 35, by = 5))) %>%
-  group_by(wind_bin) %>%
-  summarise(mean_delay = mean(dep_delay, na.rm = TRUE)) %>%
-  filter(!is.na(wind_bin)) %>%
-  ggplot(aes(x = wind_bin, y = mean_delay)) +
-  geom_col(fill = "steelblue") +
-  labs(title = "Mean Departure Delay by Wind Speed",
-       x = "Wind Speed Range", y = "Mean Delay (minutes)")
-
-Flights_train %>%
-  mutate(visib_bin = cut(visib, breaks = c(0, 2, 5, 8, 10, 12))) %>%
-  group_by(visib_bin) %>%
-  summarise(mean_delay = mean(dep_delay, na.rm = TRUE)) %>%
-  filter(!is.na(visib_bin)) %>%
-  ggplot(aes(x = visib_bin, y = mean_delay)) +
-  geom_col(fill = "coral") +
-  labs(title = "Mean Departure Delay by Visibility",
-       x = "Visibility Range", y = "Mean Delay (minutes)")
-
-Flights_train %>%
-  mutate(wind_bin = cut(wind_gust, breaks = seq(0, 35, by = 5))) %>%
-  group_by(wind_bin) %>%
-  summarise(mean_delay = mean(dep_delay, na.rm = TRUE)) %>%
-  filter(!is.na(wind_bin)) %>%
-  ggplot(aes(x = wind_bin, y = mean_delay)) +
-  geom_col(fill = "steelblue") +
-  labs(title = "Mean Departure Delay by Wind Gusts",
-       x = "Wind Speed Range", y = "Mean Delay (minutes)")
-
-
-# delays by hour
-ggplot(Flights_train, aes(x = factor(hour), y = dep_delay)) +
-  geom_boxplot(fill = "lightblue") +
-  labs(title = "Departure Delays by Hour of Day",
-       x = "Hour", y = "Departure Delay (minutes)") +
-  theme_minimal()
-
-#by day
-ggplot(Flights_train, aes(x = dow, y = dep_delay)) +
-  geom_boxplot(fill = "lightgreen") +
-  labs(title = "Departure Delays by Day of Week",
-       x = "Day of Week", y = "Departure Delay (minutes)") +
-  theme_minimal()
-
-#by month
-ggplot(Flights_train, aes(x = factor(month), y = dep_delay)) +
-  geom_boxplot(fill = "lightyellow") +
-  labs(title = "Departure Delays by Month",
-       x = "Month", y = "Departure Delay (minutes)") +
-  theme_minimal()
-
-
-
-```
 
 
