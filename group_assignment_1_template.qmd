@@ -60,6 +60,30 @@ flights_train_delayed<- flight_train %>%
 ggplot(aes( x=dep_delay, fill=carrier_name), data=flights_train_delayed)+
   geom_bar()
 ```
+```{r}
+# delays by hour
+ggplot(Flights_train, aes(x = factor(hour), y = dep_delay)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Departure Delays by Hour of Day",
+       x = "Hour", y = "Departure Delay (minutes)") +
+  theme_minimal()
+
+#by day
+ggplot(Flights_train, aes(x = dow, y = dep_delay)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Departure Delays by Day of Week",
+       x = "Day of Week", y = "Departure Delay (minutes)") +
+  theme_minimal()
+
+#by month
+ggplot(Flights_train, aes(x = factor(month), y = dep_delay)) +
+  geom_boxplot(fill = "lightyellow") +
+  labs(title = "Departure Delays by Month",
+       x = "Month", y = "Departure Delay (minutes)") +
+  theme_minimal()
+
+```
+
 
 
 ```{r}
@@ -180,6 +204,22 @@ final_lasso_results %>%
   geom_point() + 
   geom_hline(yintercept = 0)
 ```
+
+```{r}
+final_lasso_results %>% 
+  ggplot(aes(x = .pred, y = .resid)) + 
+  geom_point(alpha = 0.5) + 
+  geom_hline(yintercept = 0, color = "red", linetype = "dashed", linewidth = 1) +
+  labs(
+    title = "Residual Plot",
+    subtitle = "Checking for patterns in prediction errors",
+    x = "Predicted Delay (minutes)",
+    y = "Residual (Actual - Predicted)\nPositive = Underpredicted | Negative = Overpredicted"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+```
+
 ```{r}
 ggplot(final_lasso_results, aes(x = .resid)) +
   geom_histogram(aes(y = after_stat(density)), bins = 50, 
@@ -224,6 +264,7 @@ ggplot(final_lasso_results, aes(x = dep_delay, y = .pred)) +
   theme(plot.title = element_text(face = "bold", size = 14))
 
 ```
+
 
 
 # Implementation
@@ -401,6 +442,62 @@ ls_final_model %>% # name of your final model
 #| eval: false
 # put code for any other models or visualizations that you considered here
 # use comments to explain what your code is doing
+
+
+Flights_train %>%
+  mutate(wind_bin = cut(wind_speed, breaks = seq(0, 35, by = 5))) %>%
+  group_by(wind_bin) %>%
+  summarise(mean_delay = mean(dep_delay, na.rm = TRUE)) %>%
+  filter(!is.na(wind_bin)) %>%
+  ggplot(aes(x = wind_bin, y = mean_delay)) +
+  geom_col(fill = "steelblue") +
+  labs(title = "Mean Departure Delay by Wind Speed",
+       x = "Wind Speed Range", y = "Mean Delay (minutes)")
+
+Flights_train %>%
+  mutate(visib_bin = cut(visib, breaks = c(0, 2, 5, 8, 10, 12))) %>%
+  group_by(visib_bin) %>%
+  summarise(mean_delay = mean(dep_delay, na.rm = TRUE)) %>%
+  filter(!is.na(visib_bin)) %>%
+  ggplot(aes(x = visib_bin, y = mean_delay)) +
+  geom_col(fill = "coral") +
+  labs(title = "Mean Departure Delay by Visibility",
+       x = "Visibility Range", y = "Mean Delay (minutes)")
+
+Flights_train %>%
+  mutate(wind_bin = cut(wind_gust, breaks = seq(0, 35, by = 5))) %>%
+  group_by(wind_bin) %>%
+  summarise(mean_delay = mean(dep_delay, na.rm = TRUE)) %>%
+  filter(!is.na(wind_bin)) %>%
+  ggplot(aes(x = wind_bin, y = mean_delay)) +
+  geom_col(fill = "steelblue") +
+  labs(title = "Mean Departure Delay by Wind Gusts",
+       x = "Wind Speed Range", y = "Mean Delay (minutes)")
+
+
+# delays by hour
+ggplot(Flights_train, aes(x = factor(hour), y = dep_delay)) +
+  geom_boxplot(fill = "lightblue") +
+  labs(title = "Departure Delays by Hour of Day",
+       x = "Hour", y = "Departure Delay (minutes)") +
+  theme_minimal()
+
+#by day
+ggplot(Flights_train, aes(x = dow, y = dep_delay)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Departure Delays by Day of Week",
+       x = "Day of Week", y = "Departure Delay (minutes)") +
+  theme_minimal()
+
+#by month
+ggplot(Flights_train, aes(x = factor(month), y = dep_delay)) +
+  geom_boxplot(fill = "lightyellow") +
+  labs(title = "Departure Delays by Month",
+       x = "Month", y = "Departure Delay (minutes)") +
+  theme_minimal()
+
+
+
 ```
 
 
