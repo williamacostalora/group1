@@ -134,7 +134,7 @@ lasso_models <- lasso_workflow %>%
   tune_grid(
     grid = grid_regular(penalty(range = c(-5, 0.4)), levels = 100),
     resamples = vfold_cv(flights_train_delayed, v = 10),
-    metrics = metric_set(mae)
+    metrics = metric_set(mae, rsq)
   )
 
 # Select the most parsimonious penalty within one standard error of the best
@@ -145,6 +145,8 @@ parsimonious_penalty <- lasso_models %>%
 parsimonious_penalty
 
 ```
+
+
 ```{r}
 final_lasso<-lasso_workflow %>% 
   finalize_workflow(parameters = parsimonious_penalty) %>% 
@@ -163,6 +165,64 @@ parsimonious_results <- lasso_models %>%
   filter(penalty == parsimonious_penalty$penalty)
 
 parsimonious_results
+```
+
+```{r}
+final_lasso_results <- final_lasso %>%   
+  augment(new_data = flights_train_delayed) %>% 
+  mutate(.resid = dep_delay - .pred)
+```
+
+
+```{r}
+final_lasso_results %>% 
+  ggplot(aes(x = .pred, y = .resid)) + 
+  geom_point() + 
+  geom_hline(yintercept = 0)
+```
+```{r}
+ggplot(final_lasso_results, aes(x = .resid)) +
+  geom_histogram(aes(y = after_stat(density)), bins = 50, 
+                 fill = "steelblue", alpha = 0.7) +
+  geom_vline(xintercept = 0, color = "darkred", linetype = "dashed") +
+  labs(
+    title = "Distribution of Residuals",
+    x = "Residuals (minutes)",
+    y = "Density"
+  )
+```
+```{r}
+ggplot(final_lasso_results, aes(x = dep_delay, y = .pred)) +
+  geom_point(alpha = 0.3) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") +
+  labs(
+    title = "Predicted vs Actual Departure Delays",
+    x = "Actual Delay (minutes)",
+    y = "Predicted Delay (minutes)"
+  )
+```
+```{r}
+ggplot(final_lasso_results, aes(x = dep_delay, y = .pred)) +
+  # Add shaded regions for interpretation
+  annotate("rect", xmin = -Inf, xmax = 0, ymin = -Inf, ymax = Inf, 
+           fill = "lightgreen", alpha = 0.1) +
+  annotate("rect", xmin = 0, xmax = 15, ymin = -Inf, ymax = Inf, 
+           fill = "lightyellow", alpha = 0.1) +
+  annotate("rect", xmin = 15, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           fill = "lightcoral", alpha = 0.1) +
+  geom_point(alpha = 0.3, size = 1.5) +
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = 0, linetype = "dotted", color = "gray50") +
+  geom_hline(yintercept = 0, linetype = "dotted", color = "gray50") +
+  labs(
+    title = "Model Predictions vs Actual Departure Delays",
+    subtitle = "Points on the red line indicate perfect predictions",
+    x = "Actual Departure Delay (minutes)\nNegative = Early | Positive = Delayed",
+    y = "Predicted Delay (minutes)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 14))
+
 ```
 
 
