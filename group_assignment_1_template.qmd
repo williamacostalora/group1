@@ -273,9 +273,52 @@ Flights_Test <- read_csv('Flights_Test.csv')
 # Appendix
 
 ```{r}
+#| eval: true
+#| code-fold: true
+
+#Lambda plot with error bars
+autoplot(lasso_models) + 
+  scale_x_continuous() + 
+  xlab(expression(lambda)) + 
+  geom_errorbar(data = collect_metrics(lasso_models),
+                aes(x = penalty, ymin = mean - std_err, ymax = mean + std_err), 
+                alpha = 0.5) + labs(title = "Figure 1")
+```
+
+```{r}
+#| eval: true
+#| code-fold: true
+
+all_lassos <- final_lasso %>% 
+  extract_fit_parsnip() %>%
+  pluck("fit")
+
+lasso_coefs <- all_lassos$beta  %>% 
+  as.matrix() %>%  
+  t() %>% 
+  as.data.frame() %>% 
+  mutate(lambda = all_lassos$lambda ) %>%
+  pivot_longer(cols = -lambda, 
+               names_to = "term", 
+               values_to = "coef")
+
+lasso_coefs %>% filter(coef != 0, lambda > 1)
+
+lasso_coefs %>%
+  ggplot(aes(x = lambda, y = coef, color = term)) +
+  geom_line()  +
+  geom_text(data = lasso_coefs %>% filter(lambda>0.5), aes(x = 0.001, label = term), size = 2)   + 
+  scale_x_log10(limits = c(-2, 2)) +  
+  guides(color = FALSE) + labs(title = "Figure 2")
+```
+
+
+```{r}
 #| eval: false
 # put code for any other models or visualizations that you considered here
 # use comments to explain what your code is doing
+
+# Lambda visualizations referenced in the 'Model Building' section
 
 # some data wrangling/extra visualizations 
 
