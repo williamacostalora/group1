@@ -61,9 +61,17 @@ It is important to note that before we began building a model and attempting to 
 #| echo: false
 
 # visualization
+ggplot(aes(x = dep_delay, fill = carrier_name), data = flights_train_delayed) +
+  geom_bar() +
+  labs(
+    title = "Distribution of Departure Delays by Carrier",
+    x = "Departure Delay (minutes)",
+    y = "Number of Flights",
+    fill = "Carrier"
+  ) +
+  theme_minimal() 
 
-ggplot(aes( x=dep_delay, fill=carrier_name), data=flights_train_delayed)+
-  geom_bar()
+
 ```
 
 
