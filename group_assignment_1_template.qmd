@@ -275,7 +275,9 @@ Flights_Test <- read_csv('Flights_Test.csv')
 
 # Contributions
 
-William took the lead on building and implementing three regression models and picking the most appropiate one: LASSO, KNN, and least squares. He was responsible for data wrangling, which he had to redo midway through the project when we decided to shift our approach from using only positive delays to including all departure delays in our analysis. He also revisited which predictors to drop and reconsider our variable selection strategy, as our initial approach had kept all predictors without consideration of their relevance. William wrote the implementation section and also created the initial exploratory visualization that we are using to understand the data structure and guided our modeling decisions, including identifying patterns in delays across carriers.
+There was work done by all group members on models/visualization. Most of the work done by Adam and Olivia did not get included in the report (model building and analysis that was not LASSO, and thus did not get used). Most of the work done in building the LASSO model we ended up choosing was done by William. He was thus responsible for data wrangling, which was redone midway through the project when we shifted our approach from using only positive delays to including all departure delays in our analysis. He also revisited which predictors to drop and reconsider our variable selection strategy.The visualizations were split fairly evenly among group members. The visualizations in the ‘data’ section were done by Liam, the visualizations pertaining to LASSO/Lambda were done by Olivia, and the visualizations done in the model evaluations section were done by Adam.
+The sections were also split up.  William wrote the implementation section, Olivia wrote the model building section, and Adam did the data and model evaluation sections. Liam also took good initiative in setting up and encouraging group collaboration through the use of Github, which was beneficial to the whole group. 
+
 
 
 
