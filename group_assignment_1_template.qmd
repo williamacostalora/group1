@@ -1,5 +1,5 @@
 ---
-title: "Can We Predict Airplane Departure Delays?"
+title: "Predicting Airplane Departure Delays at MSP"
 subtitle: "STAT 253 Group Assignment 1"
 date: today
 author: "Olivia, Adam, and Liam"
@@ -78,7 +78,7 @@ ggplot(aes(x = dep_delay, fill = carrier_name), data = flights_train_delayed) +
 # Model Building
 
 When building our model, we experimented with many different approaches. This helped us ensure we weren’t making our model unnecessarily complicated. Simple models are more desired than complicated ones, and will do better on any new data the company would want to apply the model to. Our baseline comparison was between the simplest possible model of least squares. We compared the MAE’s (mean standard error of our departure delay estimates) to those of our other models. We found that using LASSO gave us the most accurate predictions.
-Using LASSO allowed us to simplify the base least squares model, and determine which predictors in the dataset were not significant in estimating departure delay. As seen in the final model, we only have x remaining predictors out of y. However, we did not stop here. When using LASSO, we can further simplify our model by choosing a different tuning parameter in the model. This choice does not make our predictions significantly worse, and is a better choice for our model (reference lambda plot). This parsimonious model also had the lowest MAE (12.2363), which means on average, our model prediction of departure delay has a mean average error of  about 12 minutes, the best of all models we fit. 
+Using LASSO allowed us to simplify the base least squares model, and determine which predictors in the dataset were not significant in estimating departure delay. As seen in the final model, we only have 10 remaining predictors out of 20. However, we did not stop here. When using LASSO, we can further simplify our model by choosing a different tuning parameter in the model. This choice does not make our predictions significantly worse, and is a better choice for our model (reference lambda plot). This parsimonious model also had the lowest MAE (12.2363), which means on average, our model prediction of departure delay has a mean average error of  about 12 minutes, the best of all models we fit. 
 
 # Implementation
 
@@ -170,9 +170,9 @@ parsimonious_results
 # Model Evaluation
 
 Our final Lasso regression model was evaluated using four key questions: Is it strong? Is it wrong? Is it accurate? Is it fair? 
-Our model achieved an R² value of 0.014 during validation testing. R² measures how much of the variation in departure delays the model can explain, ranging from 0 to 1. While this low value (1.4%) might seem concerning, it's important to understand what this means for a prediction-focused model. Flight delays are inherently unpredictable as they can be influenced by weather events, mechanical issues, air traffic congestion, and many other factors that occur in real time. Our model uses information available before departure to predict delays. The low R² reflects that delays are highly variable and difficult to predict in advance, which aligns with the reality of airline operations. What matters more for practical use is whether the model's predictions are accurate enough to be useful for decision-making.
+Our model achieved an R² value of 0.014 during validation testing. R² measures how much of the variation in departure delays the model can explain, ranging from 0 to 1. While this low value (1.4%) might seem concerning, it's important to understand what this means for a prediction-focused model. Flight delays are inherently unpredictable as they can be influenced by weather events, mechanical issues, air traffic congestion, and many other factors that occur in real time. Our model uses information available before departure to predict delays. The low R² reflects that delays are highly variable and difficult to predict in advance, which aligns with the reality of airline operations. What matters more for practical use is whether the model's predictions are accurate enough to be useful for decision making.
 
-We examined plots to check whether the statistical assumptions underlying our model are valid. The residual plot, which shows the difference between predicted and actual delays, shows that prediction errors (residuals) are scattered randomly around zero with no clear patterns. This is good, as it means the model isn't systematically missing important relationships in the data. The residuals show a relatively constant spread across different prediction values, though there is slightly more variation for longer predicted delays. The distribution of prediction errors is roughly bell-shaped and centered near zero, with a slight tendency toward underpredicting delays (more large positive errors than large negative errors). Overall, these diagnostics suggest the model's structure is appropriate for this prediction task.
+We examined plots to check whether the statistical assumptions underlying our model are valid. The residual plot, which shows the difference between predicted and actual delays, shows that prediction errors (residuals) are scattered randomly around zero with no clear patterns. This is good, as it means the model isn't systematically missing important relationships in the data. The residuals show a relatively constant spread across different prediction values, though there is slightly more variation for longer predicted delays.
 
 ```{r}
 #| message: false
@@ -198,6 +198,7 @@ final_lasso_results %>%
   theme(plot.title = element_text(face = "bold", size = 14))
 ```
 
+The distribution of prediction errors is roughly bell-shaped and centered near zero, with a slight tendency toward underpredicting delays (more large positive errors than large negative errors). Overall, these diagnostics suggest the model's structure is appropriate for this prediction task.
 
 ```{r}
 #| message: false
@@ -215,7 +216,7 @@ ggplot(final_lasso_results, aes(x = .resid)) +
   )
 ```
 
-The model achieves an average prediction error (Mean Absolute Error or MAE) of 12.15 minutes based on validation testing. This means that when the model predicts a departure delay, it's typically off by about 12 minutes in either direction. For planning purposes, this level of accuracy could provide value. Knowing whether a flight is likely to depart roughly on time versus being delayed by 30+ minutes could inform decisions about gate assignments, crew scheduling, and passenger communications. The predicted versus actual delay plot shows that most predictions fall in the 2-7 minute range. The model consistently predicts small delays, which works well for flights with minor delays, but struggles to accurately anticipate severe delays accurately. This conservative prediction pattern is understandable given that most flights experience minor delays, and the model learns from this historical pattern.
+The model achieves an average prediction error (Mean Absolute Error or MAE) of 12.15 minutes based on validation testing. This means that when the model predicts a departure delay, it's typically off by about 12 minutes in either direction. For planning purposes, this level of accuracy could provide value. Knowing whether a flight is likely to depart roughly on time versus being delayed by 30+ minutes could inform decisions about gate assignments, crew scheduling, and passenger communications.
 
 ```{r}
 #| message: false
@@ -246,10 +247,13 @@ ggplot(final_lasso_results, aes(x = dep_delay, y = .pred)) +
 
 ```
 
+The predicted versus actual delay plot shows that most predictions fall in the 2-7 minute range. The model consistently predicts small delays, which works well for flights with minor delays, but struggles to accurately anticipate severe delays accurately. This conservative prediction pattern is understandable given that most flights experience minor delays, and the model learns from this historical pattern. Also, our model does not predict any departures that are negative, or that depart early. 
+
 Evaluating fairness requires considering both the data used to build the model and how the predictions might be used. Several concerns merit attention. First, the dataset represents only flights with delays during a specific time period. If certain routes, aircraft types, or operating conditions are underrepresented in the training data, the model may not perform equally well across all operations. For example, if flights to smaller regional airports are underrepresented, predictions for those routes may be less reliable.
 
-Second, the model's tendency to predict moderate delays for most situations means it will systematically underestimate severe delays. This could disproportionately impact routes or times of day that experience more variable delay patterns. If certain routes consistently face longer delays (perhaps due to congested airspace or infrastructure limitations), passengers and operations staff on those routes would receive less accurate predictions.
-Third, there are equity considerations. If the model performs differently for different carriers, routes, or customer segments, this could perpetuate or exacerbate existing service quality disparities. For instance, if budget routes or flights serving smaller communities receive less accurate predictions, those passengers would have less reliable information for planning their travel.
+Second, the model's tendency to predict moderate delays for most situations means it will systematically underestimate severe delays. This could disproportionately impact routes or times of day that experience more variable delay patterns. If certain routes consistently face longer delays, passengers and operations staff on those routes would receive less accurate predictions.
+
+Third, there are equity considerations. If the model performs differently for different carriers, routes, or customer segments, this could worsen or exacerbate existing service quality disparities. For instance, if budget routes or flights serving smaller communities receive less accurate predictions, those passengers would have less reliable information for planning their travel.
 
 Finally, given the model's limited explanatory power, deploying it for operational decisions requires careful consideration of the consequences of prediction errors. Who bears the cost when predictions are wrong? Operations managers should consider whether certain groups of passengers or routes would be unfairly disadvantaged by relying on predictions that don't capture the full variability of delay outcomes.
 
@@ -288,7 +292,8 @@ The sections were also split up.  William wrote the implementation section, Oliv
 #| eval: true
 #| code-fold: true
 
-#Lambda plot with error bars
+#### Lambda plot with error bars
+
 autoplot(lasso_models) + 
   scale_x_continuous() + 
   xlab(expression(lambda)) + 
@@ -300,6 +305,8 @@ autoplot(lasso_models) +
 ```{r}
 #| eval: true
 #| code-fold: true
+
+### obtaining lasso coefs and plotting them to see convergence
 
 all_lassos <- final_lasso %>% 
   extract_fit_parsnip() %>%
@@ -326,14 +333,14 @@ lasso_coefs %>%
 
 
 ```{r}
-#| eval: false
+#| eval: true
+#| code-fold: true
 # put code for any other models or visualizations that you considered here
 # use comments to explain what your code is doing
 
-# Lambda visualizations referenced in the 'Model Building' section
+### Data wrangling/extra visualizations 
 
-# some data wrangling/extra visualizations 
-
+# delays vs wind speed
 flight_train %>%
   mutate(wind_bin = cut(wind_speed, breaks = seq(0, 35, by = 5))) %>%
   group_by(wind_bin) %>%
@@ -344,6 +351,7 @@ flight_train %>%
   labs(title = "Mean Departure Delay by Wind Speed",
        x = "Wind Speed Range", y = "Mean Delay (minutes)")
 
+# vs visibility
 flight_train %>%
   mutate(visib_bin = cut(visib, breaks = c(0, 2, 5, 8, 10, 12))) %>%
   group_by(visib_bin) %>%
@@ -354,6 +362,7 @@ flight_train %>%
   labs(title = "Mean Departure Delay by Visibility",
        x = "Visibility Range", y = "Mean Delay (minutes)")
 
+# vs wind gusts
 flight_train %>%
   mutate(wind_bin = cut(wind_gust, breaks = seq(0, 35, by = 5))) %>%
   group_by(wind_bin) %>%
@@ -372,31 +381,30 @@ ggplot(flight_train, aes(x = factor(hour), y = dep_delay)) +
        x = "Hour", y = "Departure Delay (minutes)") +
   theme_minimal()
 
-#by day
+# by day
 ggplot(flight_train, aes(x = dow, y = dep_delay)) +
   geom_boxplot(fill = "lightgreen") +
   labs(title = "Departure Delays by Day of Week",
        x = "Day of Week", y = "Departure Delay (minutes)") +
   theme_minimal()
 
-#by month
+# by month
 ggplot(flight_train, aes(x = factor(month), y = dep_delay)) +
   geom_boxplot(fill = "lightyellow") +
   labs(title = "Departure Delays by Month",
        x = "Month", y = "Departure Delay (minutes)") +
   theme_minimal()
 
+# top delayed flights
 top_three_delayed <- flights_train_delayed %>%
   arrange(desc(dep_delay)) %>%
   slice(1:5)
 
-top_three_delayed
-
-
+# getting just delta flights
 only_delta<-flights_train_delayed %>% 
   filter(carrier_name=="Delta Air Lines Inc.")
 
-
+# 
 ggplot(aes( y=dep_delay,fill=carrier_name ), data=only_delta)+
   geom_boxplot()
 
@@ -429,7 +437,7 @@ ggplot(aes( x=dep_delay), data=sky_delta)+
 #| warning: false
 #| eval: false
 
-# KNN model implementation
+### KNN model implementation
 
 # Define the model specification for KNN
 knn_spec <- nearest_neighbor() %>%
@@ -495,7 +503,7 @@ knn_models %>%
 #| warning: false
 #| eval: false
 
-#least squares model implementation
+### least squares model implementation
 
 # Define the model specification for least squares
 ls_spec <- linear_reg() %>%
